@@ -1,6 +1,6 @@
 """Implementation of a WiiM interface."""
+import json
 import asyncio
-
 import aiohttp
 
 
@@ -26,13 +26,13 @@ class Wiim:
             self._created_session = False
 
     async def _get_wiim_msg(self, method, params=None):
-        url = f"http://{self._host}/httpapi.asp?command={method}"
-
+        url = f"https://{self._host}/httpapi.asp?command={method}"
+        print("Using URL: " + url)
         try:
             self._init_session()
-            response = await self._session.get(url, params=params)
+            response = await self._session.get(url, verify_ssl=False, params=params)
             if response.status == 200:
-                return await response.json()
+                return json.loads(await response.text())
             else:
                 raise CannotConnectError(response)
         except aiohttp.client_exceptions.ContentTypeError:
@@ -44,6 +44,8 @@ class Wiim:
     async def get_device_information(self):
         """Get the device information."""
         response = await self._get_wiim_msg("getStatusEx")
+        print("Here's that response...\n")
+        print(response.copy())
         return response.copy()
 
     async def get_connection_status(self):
@@ -98,7 +100,8 @@ class Wiim:
 
     async def set_shuffle(self, shuffle):
         """Enable/disable shuffle mode."""
-        await self._get_wiim_msg("setPlayerCmd:loopmode:2")
+        shuffle_str = "2" if shuffle_str else "0"
+        await self._get_wiim_msg(f"setPlayerCmd:loopmode:{shuffle_str}")
 
 
 class CannotConnectError(Exception):

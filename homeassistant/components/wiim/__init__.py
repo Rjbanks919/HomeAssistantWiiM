@@ -1,27 +1,37 @@
 """The WiiM integration."""
-from __future__ import annotations
+
+from homeassistant.components.wiim.pywiim import CannotConnectError, Wiim
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN
+from .const import DOMAIN, DATA_INFO, DATA_WIIM
 
-# TODO List the platforms that you want to support.
-# For your initial PR, limit it to 1 platform.
-PLATFORMS: list[Platform] = [Platform.LIGHT]
+PLATFORMS: list[Platform] = [Platform.MEDIA_PLAYER]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up WiiM from a config entry."""
 
-    hass.data.setdefault(DOMAIN, {})
-    # TODO 1. Create API instance
-    # TODO 2. Validate the API connection (and authentication)
-    # TODO 3. Store an API object for your platforms to access
-    # hass.data[DOMAIN][entry.entry_id] = MyApi(...)
+    print("In the __init__\n")
+    wiim = Wiim(entry.data[CONF_HOST], async_get_clientsession(hass))
+
+    try:
+        info = await wiim.get_device_information()
+    except CannotConnectError as error:
+        raise ConfigEntryNotReady from error
+
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+        DATA_WIIM: wiim,
+        DATA_INFO: info,
+    }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    print("Finished __init__\n")
 
     return True
 
